@@ -1,0 +1,177 @@
+---
+title: "BIOSTAT 650 SEC 002 HW5"
+author: "Jaehoon Kim"
+date: "2024-10-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("sas7bdat")
+library("corrplot")
+library("gtsummary")
+library("dplyr")
+library("ggplot2")
+```
+\newcommand{\sumall}{\sum_{i=1}^n}
+\newcommand{\EX}{\mathbb{E}}
+\newcommand{\matr}[1]{\mathbf{#1}}
+\newcommand{\var}{\operatorname{Var}}
+\newcommand{\cov}{\operatorname{Cov}}
+\newcommand\scalemath[2]{\scalebox{#1}{\mbox{\ensuremath{\displaystyle #2}}}}
+
+## Problem 1
+
+***(a)***
+
+Let the full model be:
+
+$$
+\begin{aligned}
+Y_{dep} = &\beta_0 + \beta_{age}X_{age} + \beta_{sex}X_{sex} + \beta_{RE}X_{RE} + \beta_{edu}X_{edu} + \beta_{hty}X_{hty} + \beta_{hch}X_{hch} + \beta_{AF}X_{AF} + \beta_{CAD}X_{CAD} + \beta_{dia}X_{dia}\\&+\beta_{str}X_{str} + \beta_{NIH}X_{NIH} + \beta_{com}X_{com} + \beta_{fat}X_{fat} + \epsilon
+\end{aligned}
+$$
+
+$$\hat{\sigma}^2 = SSE(\beta_0, \beta_{age}, \beta_{sex}, \beta_{RE}, \beta_{edu}, \beta_{hty}, \beta_{hch}, \beta_{AF}, \beta_{CAD}, \beta_{dia},\beta_{str}, \beta_{NIH}, \beta_{com}, \beta_{fat})/(n-15)$$
+
+The sequence of hypothesis is
+
+1. $H_0: \beta_{age} = \beta_{sex} = \beta_{RE} = 0$ vs. $H_1: \beta_{age} \neq  0,$ $\beta_{sex} \neq 0$ or $\beta_{RE} \neq 0.$
+
+$$F = \frac{SS(\beta_{age}, \beta_{sex},\beta_{RE}|\beta_0)/3}{\hat{\sigma}^2} \sim F_{3, n-15}$$
+
+If the null hypothesis is rejected, go to the next step; otherwise, stop.
+
+2. $H_0: \beta_{edu} = 0$ vs. $H_1: \beta_{edu} \neq  0,$adjusting for age, sex and race/ethnicity. 
+
+$$F = \frac{SS(\beta_{edu}|\beta_{age}, \beta_{sex},\beta_{RE},\beta_0)/1}{\hat{\sigma}^2} \sim F_{1, n-15}$$
+If null hypothesis is rejected, go the next step. Otherwise, stop.
+
+3. $H_0: \beta_{hty}=\beta_{hch}=\beta_{AF}=\beta_{CAD}=\beta_{dia}=\beta_{str} = 0$ vs. $H_1: \beta_{hty} \neq 0, \beta_{hch} \neq 0, \beta_{AF} \neq 0, \beta_{CAD} \neq 0, \beta_{dia} \neq 0, or \beta_{str} \neq 0,$adjusting for age, sex, race/ethnicity, and education. 
+
+$$F = \frac{SS(\beta_{hty},\beta_{hch},\beta_{AF},\beta_{CAD},\beta_{dia},\beta_{str}|\beta_{edu},\beta_{age}, \beta_{sex},\beta_{RE},\beta_0)/7}{\hat{\sigma}^2} \sim F_{7, n-15}$$
+If the null hypothesis is rejected, go to the next step. Otherwise, stop.
+
+4. $H_0:  \beta_{NIH} = \beta_{com} = 0$ vs. $H_1: \beta_{NIH} \neq 0 or \beta_{com} \neq 0,$ adjusting for age, sex, race/ethnicity,education and stroke risk factors.
+
+
+$$F = \frac{SS(\beta_{NIH},\beta_{com}|\beta_{hty},\beta_{hch},\beta_{AF},\beta_{CAD},\beta_{dia},\beta_{str},\beta_{edu},\beta_{age}, \beta_{sex},\beta_{RE},\beta_0)/2}{\hat{\sigma}^2} \sim F_{2, n-15}$$
+If the null hypothesis is rejected, go to the next step. Otherwise, stop.
+
+5.$H_0:  \beta_{fat} = 0$ vs. $H_1: \beta_{fat} \neq 0,$  adjusting for age, sex, race/ethnicity,education and stroke risk factors, stroke severity, and comorbity
+
+
+$$F = \frac{SS(\beta_{fat}|\beta_{NIH},\beta_{com},\beta_{hty},\beta_{hch},\beta_{AF},\beta_{CAD},\beta_{dia},\beta_{str},\beta_{edu},\beta_{age}, \beta_{sex},\beta_{RE},\beta_0)/1}{\hat{\sigma}^2} \sim F_{2, n-15}$$
+If null hypothesis is rejected, go to the next step. Otherwise, stop.
+
+***(b)***
+
+Let the following vector notations of beta coeffecients be defined as such:
+
+(i) $\boldsymbol{\beta}_{demo} = (\beta_{age}, \beta_{sex},\beta_{RE})^T$
+(ii) $\boldsymbol{\beta}_{Edu} = (\beta_{edu})^T$
+(iii) $\boldsymbol{\beta}_{Risk} = (\beta_{hty},\beta_{hch},\beta_{AF},\beta_{CAD},\beta_{dia},\beta_{str})^T$
+(iv) $\boldsymbol{\beta}_{Stroke} = (\beta_{NIH},\beta_{com})^T$
+(v) $\boldsymbol{\beta}_{Fatalism} = (\beta_{fat})^T$
+
+Let $A,B$ denote the SS numerator and SSE denominator for the F test respectively.
+
+\begin{center}
+$\scalemath{0.75}{\begin{array}{c|c|c|c|c}
+\hline
+\text{Step} & \text{Var. Tested}  & SS(num.) & SS(Denom.) & Test Statistics\\
+\hline
+I. & \boldsymbol{\beta}_{demo} & SS(\boldsymbol{\beta}_{demo}|\beta_0) & SSE(\boldsymbol{\beta}_{Fatalism}, \boldsymbol{\beta}_{Stroke},\boldsymbol{\beta}_{Risk}, \boldsymbol{\beta}_{Edu}, \boldsymbol{\beta}_{demo}, \beta_0) & F = \frac{A/3}{B/597} \\
+\hline
+II. & \boldsymbol{\beta}_{Edu} & SS(\boldsymbol{\beta}_{Edu}|\boldsymbol{\beta}_{demo}, \beta_0) & SSE(\boldsymbol{\beta}_{Fatalism}, \boldsymbol{\beta}_{Stroke},\boldsymbol{\beta}_{Risk}, \boldsymbol{\beta}_{Edu}, \boldsymbol{\beta}_{demo}, \beta_0) & F = \frac{A/1}{B/597} \\
+\hline
+III. & \boldsymbol{\beta}_{Risk} & SS(\boldsymbol{\beta}_{Risk}|\boldsymbol{\beta}_{Edu},\boldsymbol{\beta}_{demo}, \beta_0) & SSE(\boldsymbol{\beta}_{Fatalism}, \boldsymbol{\beta}_{Stroke},\boldsymbol{\beta}_{Risk}, \boldsymbol{\beta}_{Edu}, \boldsymbol{\beta}_{demo}, \beta_0) & F = \frac{A/7}{B/597} \\
+\hline
+IV. & \boldsymbol{\beta}_{Stroke} & SS(\boldsymbol{\beta}_{Stroke}|\boldsymbol{\beta}_{Risk},\boldsymbol{\beta}_{Edu},\boldsymbol{\beta}_{demo}, \beta_0) & SSE(\boldsymbol{\beta}_{Fatalism}, \boldsymbol{\beta}_{Stroke},\boldsymbol{\beta}_{Risk}, \boldsymbol{\beta}_{Edu}, \boldsymbol{\beta}_{demo}, \beta_0) & F = \frac{A/2}{B/597} \\
+\hline
+V. & \boldsymbol{\beta}_{Fatalism} & SS(\boldsymbol{\beta}_{Fatalism}|\boldsymbol{\beta}_{Stroke}, \boldsymbol{\beta}_{Risk},\boldsymbol{\beta}_{Edu},\boldsymbol{\beta}_{demo}, \beta_0) & SSE(\boldsymbol{\beta}_{Fatalism}, \boldsymbol{\beta}_{Stroke},\boldsymbol{\beta}_{Risk}, \boldsymbol{\beta}_{Edu}, \boldsymbol{\beta}_{demo}, \beta_0) & F = \frac{A1}{B/597} \\
+\hline
+\end{array}}$
+\end{center}
+
+Result table below
+
+```{r chunk2}
+mySASData = read.sas7bdat("C:/Users/aquil/Desktop/STAT 650/completedata.sas7bdat")
+
+var = c(
+"Depression",
+"Age",
+"Sex",
+"R_E",
+"Education",
+"Htn",
+"HiChol",
+"Afib",
+"Cad",
+"Db",
+"CurrentSmoker",
+"HxStroke",
+"NIHScore",
+"Comorbidity1",
+"Fatalism"
+)
+newData = mySASData[,var]
+n = nrow(newData)
+full_model = paste0(var[-1], collapse = ' + ')
+full_model = paste0("Depression",' ~ ', full_model)
+design = model.matrix(as.formula(full_model), data = newData)
+full.lm = lm(formula = as.formula(full_model),data = newData)
+#Analysis of Variance Table
+aov = anova(full.lm)
+aov
+```
+```{r SS}
+SSY = sum(aov$`Sum Sq`)
+SSQ = aov$`Sum Sq`
+MSE = aov$`Mean Sq`[15]
+#Sum of Squares for each step:
+ss1 = sum(SSQ[1:3])
+print(ss1)
+ss2 = sum(SSQ[4])
+print(ss2)
+ss3 = sum(SSQ[5:11])
+print(ss3)
+ss4 = sum(SSQ[12:13])
+print(ss4)
+ss5 = sum(SSQ[14])
+print(ss5)
+#Test Statistics for each step:
+fstat1 = ss1/3/MSE
+pval1 = 1-pf(q = fstat1, df1 = 3, df2 = n-15)
+print(c(fstat1, pval1))
+fstat2 = ss2/1/MSE
+pval2 = 1-pf(q = fstat2, df1 = 1, df2 = n-15)
+print(c(fstat2, pval2))
+fstat3 = ss3/7/MSE
+pval3 = 1-pf(q = fstat3, df1 = 7, df2 = n-15)
+print(c(fstat3, pval3))
+fstat4 = ss4/2/MSE
+pval4 = 1-pf(q = fstat4, df1 = 2, df2 = n-15)
+print(c(fstat4, pval4))
+fstat5 = ss5/1/MSE
+pval5 = 1-pf(q = fstat5, df1 = 1, df2 = n-15)
+print(c(fstat5, pval5))
+
+```
+
+```{r tbl, message=FALSE, warnings=FALSE, echo=FALSE, results='asis'}
+ss1 = 10 
+tbl <- c("
+| Step | Tested Var. |  SS(Num.) | SS(Denom.) | Test Stat. | Dist. | p-value | Decision | Stopping Rule | Decision |
+|------|----------|-----------|--------------|----------------|---------|-------------|-------------|------------|----------| 
+|  $$I$$  |  $$\\boldsymbol{\\beta}_{Demo}$$ |   737.0381     |  14566.5 | 1.006902e+01 | $$F_{3,597}$$ | 1.764708e-06 | `Reject `| `Do not stop` | `Collect`|
+|  $$II$$  |  $$\\boldsymbol{\\beta}_{Edu}$$ |   107.9535     |  14566.5 | 4.42441053 | $$F_{1,597}$$ | 0.03584616 | `Reject `| `Do not stop` | `Collect`|
+|  $$III$$  |  $$\\boldsymbol{\\beta}_{Risk}$$ |   880.7591     |  14566.5 | 5.156769e+00 | $$F_{7,597}$$ | 1.028334e-05 | `Reject `| `Do not stop` | `Collect`|
+|  $$IV$$  |  $$\\boldsymbol{\\beta}_{Stroke}$$ |   62.71662     |  14566.5 | 1.2852016 | $$F_{2,597}$$ | 0.2773589 | `Fail to Reject `| `Stop` | `Not Collect`|
+|  $$V$$  |  $$\\boldsymbol{\\beta}_{Fatalism}$$ |   812.8529     |  14566.5 | 3.331429e+01 | $$F_{1,597}$$ | 1.260721e-08 | `Reject `| `NA` | `Not Collect`|
+")
+cat(tbl, sep="")
+```
+
+If we use the stopping rule as shown above, We would not be able to test whether fatalism is associated with depression after adjusting for all other covariates previously tested, even though we are able to see that the p-value for the test would have been very small had we been able to test it.

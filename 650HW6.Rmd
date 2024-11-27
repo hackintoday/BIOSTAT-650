@@ -1,0 +1,295 @@
+---
+title: "BIOSTAT 650 SEC 002 HW6"
+author: "Jaehoon Kim"
+date: "2024-10-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("sas7bdat")
+library("corrplot")
+library("gtsummary")
+library("dplyr")
+library("ggplot2")
+library("data.table")
+```
+\newcommand{\sumall}{\sum_{i=1}^n}
+\newcommand{\EX}{\mathbb{E}}
+\newcommand{\matr}[1]{\mathbf{#1}}
+\newcommand{\var}{\operatorname{Var}}
+\newcommand{\cov}{\operatorname{Cov}}
+\newcommand\scalemath[2]{\scalebox{#1}{\mbox{\ensuremath{\displaystyle #2}}}}
+
+```{r chunk2}
+mySASData = read.sas7bdat("completedata.sas7bdat")
+
+var = c(
+"Depression",
+"Age",
+"Sex",
+"R_E",
+"Fatalism"
+)
+
+df <- mySASData[ ,var]
+typeof(df$Depression)
+
+#(a)
+df <- df |>
+  mutate(Age_Cat = cut(Age,breaks = c(-Inf, quantile(Age,c(0.25, 0.5, 0.75)), Inf), labels = c(0, 1, 2, 3)))
+
+
+#df$Age_Cat
+
+#(b)
+#include age variable as well
+#figure this code out later
+#total <- nrow(df)
+#age_summary <- df %>%
+#  group_by(Age_Cat) %>%
+#  summarize(
+#    Percentage = n()/total*100,
+#    mean = mean(Depression),
+#    Max = max(Depression),
+#    Min = min(Depression),
+#    sd = sd(Depression)
+#  )
+#age_summary
+dfage0<- df[(df$Age_Cat==0)|(df$Age_Cat==1),]
+dfage0$Age_Cat=as.numeric(dfage0$Age_Cat)-1
+library("gtsummary")
+dfage0 |> select("Depression", "Age_Cat", "Age")|>
+  tbl_summary(by = Age_Cat,
+              type = list(Depression ~ "continuous", Age ~ "continuous"),
+              statistic = list(all_continuous() ~ "{mean} ({sd}); {median}, {min}, {max}"),
+              digits = list(all_continuous() ~ c(2,2,0,0)))
+
+#Arguments ' ' single quotes for list not working for some reason.
+```
+```{r }
+dfage23<- df[(df$Age_Cat==2)|(df$Age_Cat==3),]
+dfage23$Age_Cat=as.numeric(dfage23$Age_Cat)-1
+library("gtsummary")
+dfage23 |> select("Depression", "Age_Cat", "Age")|>
+  tbl_summary(by = Age_Cat,
+              type = list(Depression ~ "continuous", Age ~ "continuous"),
+              statistic = list(all_continuous() ~ "{mean} ({sd}); {median}, {min}, {max}"),
+              digits = list(all_continuous() ~ c(2,2,0,0)))
+
+```
+
+```{r }
+total <- nrow(df)
+age_summary <- df |>
+  group_by(Age_Cat) |>
+  summarize(
+    Percentage = n()/total*100
+  )
+age_summary
+              
+```
+**(C)**
+
+```{r chunk3}
+#(c)
+df<- df |>
+  mutate(
+    Fatalism_c = (df$Fatalism-mean(df$Fatalism))/IQR(df$Fatalism)
+  )
+
+
+fitmodel <- lm(Depression~Fatalism_c+Sex+R_E+factor(Age_Cat), data=df)
+summary(fitmodel)
+
+#Q:Unsure how to interpret results, why does one categorical not show up?
+#R automatically uses Age cat as multiple dummy variables when set as factor var.
+#group 0 as a reference (compared to the age category 0 on avg age 1 lower depression score on average adjusted for everything else, because 23 dummies have already taken away the variance)
+#same increase in mean depression for every unit point increase in age category.
+
+
+#Mean differences in depression seem to get bigger?
+
+```
+The reference group NHW males with ages below the 25th quartile with average fatalism score on average have statistically significant depression score of 6.6 at significance level $\alpha = 0.05.$
+
+Those with 8.25 unit points higher fatalism score on average have 2.2117 points statistically significantly higher depression score at significance level $\alpha = 0.05.$
+
+Females on average have statistically insignificant 0.52 unit points higher depression scores than males at significance level $\alpha = 0.05.$
+
+MA on average have have statistically insignificant 0.2789 unit points higher depression scores than males at significance level $\alpha = 0.05.$
+
+Overall there seems to be general decrease in depression scores for all age groups older than the youngest quartile. The differences were 1.6394, 0.7899. 3.5238 points respectively with the difference being statistically insignificant from age group 0 for age group 2 whilst the other groups 1 and 3 had a statistically significant difference in depression scores from age group 0. There is no clear strictly increasing or decreasing trend in depression score as the age group got older.
+
+
+**(D)**
+```{r chunk 4}
+#Alternatively take the difference in SSR using the full model - SSR using the model with only fatalism sex R_E.
+
+
+#(d)
+anova(fitmodel)
+
+
+```
+
+According to the ANOVA table (Type I), we get $F=12.537.$ it is larger than value at the critical value $F_{3, 605} = 2.60,$ thus its p value is less than 0.05. Thus there is a statistically significant association between age in categories and depression adjusting for fatalism, sex, and race/ethnicity.
+
+
+**(e)**
+```{r chunk 5}
+#(e) as numeric??
+
+#For some reason turning it into numeric adds a 1
+df$Age_Cat <- as.numeric(df$Age_Cat)-1
+typeof(df$Age_Cat)
+
+fitmodelc <- lm(Depression~Fatalism_c+Sex+R_E+Age_Cat, data=df)
+summary(fitmodelc)
+#bakes in a stronger assumption (ordinality and constant effect for each jump) that every jump in age group is equal increase in mean depression
+
+#Not really(?) It just gives a mean change in Depression for every jump??
+#Does it give mean differences between mean of each group?
+```
+For 1 level move up in age category, average depression scores are statistically significantly lower by 0.94 points at a significance level $\alpha = 0.05.$ The model makes a strong assumption that it is dealing with ordinal variable with equal spacing between levels, but this is not the case with our age groups differ in range by group 0,1,2,3 thus we cannot make a meaningful interpretation of 0.94 when moving between groups. We can at least make a generic interpretation that depression score generally increases with age.
+
+**(F)**
+
+We conclude that higher age has a statistically significant association with lower depression scores after adjusting for sex, fatalism, and race/ethnicity at a significance level $\alpha = 0.05$ Thus, reject the null hypothesis that there is no trend between higher age categories and differences in depression after adjusting for sex, fatalism, and race/ethnicity. This seems to be due to the much stronger association with lower depression from the oldest age group compared to the other age groups when age was used as a categorical variable in part (c)
+
+**(G)**
+The coefficients for fatalism and race/ethnicity changes the most when age category is used instead of continuous age. The 5% difference is pretty much harmless but could potentially be damaging in other situations. This probably happened because categorizing age introduced a loss of information to the model. Specifically, the information loss likely comes from the fact that the moment different observations with different ages were collapsed into the same age grou,p the variation in Depression explained by the increment in age between those two observations (ex) 25 years to 30 years old) would have been lost and explanation of variation was taken up by the variables centered Fatalism and gender.
+```{r Comparison}
+
+df<- df |> mutate(Fatalism_c = (df$Fatalism-mean(df$Fatalism))/IQR(df$Fatalism))
+
+#Ensure all models have the exact same covariate order or the comparison will produce trash!
+fitmodelcont <- lm(Depression ~ Fatalism_c + Sex + R_E + Age, data = df)
+coef1 = summary(fitmodel)$coefficients
+coef2 = summary(fitmodelc)$coefficients
+coef3 = summary(fitmodelcont)$coefficients
+
+
+summaries = function(x) {
+  out = data.frame(t(cbind(coef1[x,], coef2[x, ], coef3[x,])))
+  out$"Percentage difference from coef where age is continuous" = round((out$Estimate - out$Estimate[3])/out$Estimate[3]*100,2)
+  colnames(out)[1:4] = c(dimnames(coef1)[[2]])
+  rownames(out) = c("Age cat dummy", "Age ordinal", "Age continous")
+  return(out)
+}
+
+
+Fatalism_c.summ = summaries(2)
+R_E.summ = summaries(3)
+Sex.summ = summaries(4)
+
+knitr::kable(Fatalism_c.summ, caption = "Fatalism_c")
+```
+```{r }
+knitr::kable(R_E.summ, caption = "R_E")
+```
+
+```{r }
+knitr::kable(Sex.summ, caption = "Sex")
+```
+
+**(h)**
+```{r }
+coef_agecat <- summary(fitmodelc)$coefficients['Age_Cat',]
+df<- df |>
+  mutate(Fatalism_c = (df$Fatalism-mean(df$Fatalism))/IQR(df$Fatalism))
+
+df$Age_Cat10 = 10 * (as.numeric(df$Age_Cat))
+fit4 <- lm(Depression ~ Fatalism_c + R_E + Sex + Age_Cat10, data = df)
+coef_agecat10 = summary(fit4)$coefficients['Age_Cat10',]
+
+df$Age_Cat300 = df$Age_Cat10
+df$Age_Cat300[which(df$Age_Cat10 == 30)] = 300
+fit5 <- lm(Depression ~ Fatalism_c + R_E + Sex + Age_Cat300, data = df)
+coef_agecat300 = summary(fit5)$coefficients['Age_Cat300',]
+
+meanscore <- by(df$Age, df$Age_Cat, mean)
+df$AgeMean = meanscore[1]
+df$AgeMean[df$Age_Cat==1] = meanscore[2]
+df$AgeMean[df$Age_Cat==2] = meanscore[3]
+df$AgeMean[df$Age_Cat==3] = meanscore[4]
+fit6 <- lm(Depression ~ Fatalism_c + R_E + Sex + AgeMean, data = df)
+coef_agemean = summary(fit6)$coefficients['AgeMean', ]
+
+age_summary2 <- rbind(coef_agecat, coef_agecat10, coef_agecat300, coef_agemean)
+row.names(age_summary2) = c(
+  "Original 0,1,2,3",
+  "scale by 10",
+  "0,10,20,300",
+  "Mean age in category"
+)
+
+knitr::kable(age_summary2)
+```
+In all different scores, the p values were statistically significant at a significance level $\alpha = 0.05$ for which the p values were $1.3*10^{-6}, 1.0*10^{-7}, 1.2*10^{-6}$ respectively. The original scores multiplied by 10 reports the exact same t-values whilst the other modified scores do not. This can be attributed to the fact that the scaling increased both beta estimate and standard error by a factor of 10 exclusively for that variable. The modified variables have lower variance than the original. In particular, for the age variable which had a 300 added in the place of 30 we can see that the standard error has decreased dramatically since we have artificially introduced a larger variance which affects the standard error $\sqrt{\sigma^2(X^TX)^{-1}},$ subsequently giving it the highest absolute t-value and the lowest p-value as well.
+
+## 2.
+
+(a)
+
+$\beta_0$: Average SBP of non smoking 55 year olds with Quatelet index 3.5
+
+$\beta_1$: Adjusted age effect among non smokers with Quatelet index 3.5 when $S_i=0, Q^c_i=0.$
+
+$\beta_2$: Adjusted effect of Quatelet index for 55 year old non smokers.
+
+$\beta_3$: Adjusted effect of smoking for those aged 55 year old and Quatelet index 3.5
+
+$\beta_4$: Mean change in adjusted age effect for 1 unit higher Quatelet index or mean change in adjusted Quatelet index effect for 1 unit higher age.
+
+$\beta_5$: Mean change in adjusted age effect comparing smokers to non smokers or Mean change in adjusted smoking effect for 1 unit change in age.
+
+(b) $$SBP_i= \beta_0 + (\beta_1+\beta_4Q^c_i+\beta_5S_i)A^c_i+\beta_2Q^c_i+\beta_3S_i + \epsilon_i$$
+
+(c) $$SBP_i= \beta_0 + \beta_1A_i + (\beta_2 + \beta_4A_i)Q^c+\beta_3S_i + \beta_5A^c_iS_i+ \epsilon_i$$
+
+(d) $$SBP_i= \beta_0 + \beta_1A_i + \beta_2Q^c_i +(\beta_3 + \beta_5A_i)S_i + \beta_4A^c_iQ^c_i+ \epsilon_i$$
+
+
+## 3.
+(a)
+$$Depression_i = \beta_0 + \beta_1 Fatalism^c_i + \beta_2 Sex_i+ \beta_3 Sex_i Fatalism^c_i + \beta_4 RE_i + \beta_5 A^c_i + \epsilon$$
+Where $$Fatalism^c_i = \frac{Fatalism_i-17}{8.5}$$ 
+and $$Age^c_i = \frac{A_i-65.88562}{10}.$$
+
+$$H_0: \beta_3 =0$$
+
+$$H_1: \beta_3 \neq 0$$ 
+**(b)**
+$\hat{\beta}_3 = 1.325, t = 2.014, \textit{df} =606, p = 0.044 < 0.05$ Reject the null hypothesis.
+
+```{r Problem 3 (b)}
+df <- mySASData[ ,var]
+df$Fatalism_c <- ((df$Fatalism-17)/8.5)
+df$Age10 <-(df$Age-mean(df$Age))/10
+#scaled age age category numerical
+
+model<-lm(Depression~Fatalism_c+Sex+Sex*Fatalism_c+R_E+Age10, data=df)
+summary(model)
+
+```
+**(c)**
+$\hat{\beta}_1 = 1.546, \hat{\beta}_3 = 1.325$
+
+$\var (\hat{\beta}_1) = 0.2025, \var (\hat{\beta}_3) = 0.4328$
+
+$CoVar (\hat{\beta}_1,\hat{\beta}_3) = -0.2022$
+
+$SE (\hat{\beta}_1,\hat{\beta}_3) = \sqrt{\var (\hat{\beta}_1) + \var (\hat{\beta}_3) + 2*CoVar (\hat{\beta}_1,\hat{\beta}_3)} = 0.4805$
+
+$CI_{0.95} = \hat{\beta}_1+\hat{\beta}_3 \pm t_{0.975, 606}*SE(\hat{\beta}_1,\hat{\beta}_3) = (1.9273,3.8146)$
+
+females 2.871(1.9273,3.8146) and among males 1.5459(1.9273,3.8146).
+
+```{r }
+vcov(model)
+```
+
+**(d)**
+
+The association between fatalism and depression among females is significantly different from that among males with p value 0.0444 at a significance level 0.05. Adjusting for age and race/ethnicity, among females, the average depression score is 2.8709 points higher per 8.5 points increase in fatalism score with a confidence interval (1.9273,3.8146) at confidence level 95%.
